@@ -7,7 +7,7 @@ import (
 	"cloud.google.com/go/bigquery"
 )
 
-func convertAvroToBigQuery(avroSchema map[string]interface{}) ([]*bigquery.FieldSchema, error) {
+func ConvertAvroToBigQuery(avroSchema map[string]interface{}) ([]*bigquery.FieldSchema, error) {
 	var fields []*bigquery.FieldSchema
 
 	avroFields, ok := avroSchema["fields"].([]interface{})
@@ -237,7 +237,7 @@ func convertAvroTypeToBigQuery(avroType map[string]interface{}) (bigquery.FieldT
 
 		// Recursively convert record fields
 		fmt.Println("map[string]interface{}fields: ", (map[string]interface{}{"fields": fields}))
-		recordFields, err := convertAvroToBigQuery(map[string]interface{}{"fields": fields})
+		recordFields, err := ConvertAvroToBigQuery(map[string]interface{}{"fields": fields})
 		if err != nil {
 			return bigquery.RecordFieldType, nil, err
 		}
