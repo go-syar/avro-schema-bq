@@ -1,3 +1,4 @@
+<a href="https://pkg.go.dev/github.com/go-syar/avro-schema-bq"><img src="https://pkg.go.dev/badge/github.com/go-syar/avro-schema-bq.svg" alt="Go Reference"></a>
 # avro-schema-bq 
 Convert [Apache Avro](https://avro.apache.org/docs/1.11.1/specification/) schema (it supports schemas with array/record types) to [BigQuery Table Schema](https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#TableSchema).
 
