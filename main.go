@@ -1,36 +1,22 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
-	"time"
 
-	"cloud.google.com/go/bigquery"
-	"google.golang.org/api/option"
+	"github.com/go-syar/avro-schema-bq/schema"
 )
 
-type schemaJsonResponse struct {
-	Type    string          `json:"type"`
-	Data    bigquery.Schema `json:"data"`
-	Message string          `json:"message"`
-}
+// type schemaJsonResponse struct {
+// 	Type    string          `json:"type"`
+// 	Data    bigquery.Schema `json:"data"`
+// 	Message string          `json:"message"`
+// }
 
 func main() {
-	projectID := "csw-data-gateway-nonprod"
-	datasetID := "data_gateway_test"
-	tableID := "tablename"
-	schemaFilePath := "schemafilepath"
-	serviceAccount := "csw-data-gateway-nonprod-api@csw-data-gateway-nonprod.iam.gserviceaccount.com.Json"
-	ctx := context.Background()
-	client, err := bigquery.NewClient(ctx, projectID, option.WithCredentialsFile(serviceAccount))
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer client.Close()
-	//var response = schemaJsonResponse{}
+
+	schemaFilePath := "schema/test_data/testfile.avsc"
 
 	avroSchemaContent, err := ioutil.ReadFile(schemaFilePath)
 	if err != nil {
@@ -47,7 +33,7 @@ func main() {
 
 	fmt.Println("avroschema: ", avroSchema)
 
-	bqFields, err := schema.convertAvroToBigQuery(avroSchema)
+	bqFields, err := schema.ConvertAvroToBigQuery(avroSchema)
 	if err != nil {
 		fmt.Println("Error:", err)
 		return
@@ -62,23 +48,19 @@ func main() {
 			}
 		}
 	}
-	fmt.Println("BigQuery Schema: ", bqFields)
-	metadata := &bigquery.TableMetadata{
-		Schema: bqFields,
-		Labels: map[string]string{
-			"application":         "data_gateway",
-			"table_creation_type": "kafka",
-		},
-		ExpirationTime: time.Now().AddDate(1, 0, 0),
-	}
-	fmt.Println("BigQuery metadata: ", metadata)
 
-	tableRef := client.Dataset(datasetID).Table(tableID)
-	if err := tableRef.Create(ctx, metadata); err != nil {
+	// Convert the BigQuery schema to JSON
+	jsonData, err := json.MarshalIndent(bqFields, "", "    ")
+	if err != nil {
+		fmt.Println("Error marshaling BigQuery schema to JSON:", err)
 		return
 	}
 
-	//response = schemaJsonResponse{Type: "success", Data: bqFields, Message: "Successfully Created BQ Table"}
-	//json.NewEncoder(w).Encode(response)
+	// Write the JSON data to a file
+	err = ioutil.WriteFile("schema/test_data/bq_schema.json", jsonData, 0644)
+	if err != nil {
+		fmt.Println("Error writing JSON data to file:", err)
+		return
+	}
 
 }
