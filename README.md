@@ -1,5 +1,5 @@
-# avro-schema-bq
-Convert [Apache Avro](https://avro.apache.org/docs/1.11.1/specification/) schema to [BigQuery Table Schema](https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#TableSchema).
+# avro-schema-bq 
+Convert [Apache Avro](https://avro.apache.org/docs/1.11.1/specification/) schema (it supports schemas with array/record types) to [BigQuery Table Schema](https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#TableSchema).
 
 ```sh
 go install github.com/go-syar/avro-schema-bq@latest
