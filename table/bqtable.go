@@ -12,11 +12,11 @@ import (
 	"google.golang.org/api/option"
 )
 
-func CreateBQTableWithSA(projectID, datasetID, tableID, serviceAccount string) error {
-	if projectID == "" || datasetID == "" || tableID == "" || serviceAccount == "" {
+func CreateBQTableWithSA(projectID, datasetID, tableID, serviceAccount, schemaFilePath string) error {
+	// service account := "service-account.json"
+	if projectID == "" || datasetID == "" || tableID == "" || serviceAccount == "" || schemaFilePath == "" {
 		return fmt.Errorf("missing one of the required parameters")
 	}
-	schemaFilePath := "schemafilepath"
 
 	ctx := context.Background()
 	client, err := bigquery.NewClient(ctx, projectID, option.WithCredentialsFile(serviceAccount))

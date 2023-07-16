@@ -15,17 +15,13 @@ func ConvertAvroToBigQuery(avroSchema map[string]interface{}) ([]*bigquery.Field
 		return nil, fmt.Errorf("invalid Avro schema")
 	}
 
-	fmt.Println("avroFields: ", avroFields)
-
 	for _, avroField := range avroFields {
 		avroFieldMap, ok := avroField.(map[string]interface{})
 		if !ok {
 			return nil, fmt.Errorf("invalid Avro schema field")
 		}
-		fmt.Println("avroFieldMap:", avroFieldMap)
 
 		description, _ := avroFieldMap["doc"].(string)
-		fmt.Println("doc: ", description)
 
 		fieldName, ok := avroFieldMap["name"].(string)
 		if !ok {
@@ -39,7 +35,6 @@ func ConvertAvroToBigQuery(avroSchema map[string]interface{}) ([]*bigquery.Field
 		switch avroFieldMap["type"].(type) {
 		case []interface{}:
 			fieldType, ok := avroFieldMap["type"].([]interface{})
-			fmt.Println("fieldType: ", fieldType)
 			if !ok {
 				return nil, fmt.Errorf("invalid Avro schema field type")
 			}
@@ -51,7 +46,6 @@ func ConvertAvroToBigQuery(avroSchema map[string]interface{}) ([]*bigquery.Field
 					if err != nil {
 						return nil, err
 					}
-					fmt.Println("bqFieldType: ", bqFieldType)
 					field := &bigquery.FieldSchema{
 						Name:        fieldName,
 						Type:        bqFieldType,
@@ -59,10 +53,6 @@ func ConvertAvroToBigQuery(avroSchema map[string]interface{}) ([]*bigquery.Field
 						Description: description,
 					}
 					fields = append(fields, field)
-					for _, field := range fields {
-						fmt.Println("fields interface map: ", field)
-						fmt.Println()
-					}
 
 				case string:
 					if avroField == "null" {
@@ -80,16 +70,11 @@ func ConvertAvroToBigQuery(avroSchema map[string]interface{}) ([]*bigquery.Field
 							Description: description,
 						}
 						fields = append(fields, field)
-						for _, field := range fields {
-							fmt.Println("fields interface string: ", field)
-							fmt.Println()
-						}
 					}
 				}
 			}
 		case string:
 			fieldType, ok := avroFieldMap["type"].(string)
-			fmt.Println("fieldType: ", fieldType)
 			if !ok {
 				return nil, fmt.Errorf("invalid Avro schema field type")
 			}
@@ -97,7 +82,6 @@ func ConvertAvroToBigQuery(avroSchema map[string]interface{}) ([]*bigquery.Field
 			if err != nil {
 				return nil, fmt.Errorf("invalid Avro schema field type")
 			}
-			fmt.Println("bqFieldType: ", bqFieldType)
 			field := &bigquery.FieldSchema{
 				Name:        fieldName,
 				Type:        bqFieldType,
@@ -105,13 +89,8 @@ func ConvertAvroToBigQuery(avroSchema map[string]interface{}) ([]*bigquery.Field
 			}
 			fields = append(fields, field)
 
-			for _, field = range fields {
-				fmt.Println("fields string: ", field)
-				fmt.Println()
-			}
 		case map[string]interface{}:
 			fieldType, ok := avroFieldMap["type"].(map[string]interface{})
-			fmt.Println("fieldType: ", fieldType)
 			if !ok {
 				return nil, fmt.Errorf("invalid Avro schema field type")
 			}
@@ -119,8 +98,7 @@ func ConvertAvroToBigQuery(avroSchema map[string]interface{}) ([]*bigquery.Field
 			if err != nil {
 				return nil, err
 			}
-			fmt.Println("bqFieldType: ", bqFieldType)
-			fmt.Println("bqFieldSchema: ", bqFieldSchema)
+
 			field := &bigquery.FieldSchema{
 				Name:        fieldName,
 				Type:        bqFieldType,
@@ -128,10 +106,6 @@ func ConvertAvroToBigQuery(avroSchema map[string]interface{}) ([]*bigquery.Field
 				Description: description,
 			}
 			fields = append(fields, field)
-			for _, field := range fields {
-				fmt.Println("fields map: ", field)
-				fmt.Println()
-			}
 
 		default:
 			field := &bigquery.FieldSchema{
@@ -141,10 +115,6 @@ func ConvertAvroToBigQuery(avroSchema map[string]interface{}) ([]*bigquery.Field
 			}
 			fields = append(fields, field)
 		}
-	}
-	for _, field := range fields {
-		fmt.Println("fields final: ", field)
-		fmt.Println()
 	}
 	return fields, nil
 }
@@ -186,7 +156,7 @@ func convertAvroTypeToBigQuery(avroType map[string]interface{}) (bigquery.FieldT
 	typeName, ok := avroType["type"].(string)
 	fmt.Println("typeName:", typeName)
 	if !ok {
-		return bigquery.RecordFieldType, nil, fmt.Errorf("Invalid Avro type")
+		return bigquery.RecordFieldType, nil, fmt.Errorf("invalid avro type")
 	}
 
 	switch typeName {
@@ -219,32 +189,29 @@ func convertAvroTypeToBigQuery(avroType map[string]interface{}) (bigquery.FieldT
 	case "array":
 		items, ok := avroType["items"].(map[string]interface{})
 		if !ok {
-			return bigquery.RecordFieldType, nil, fmt.Errorf("Invalid Avro array items")
+			return bigquery.StringFieldType, nil, fmt.Errorf("invalid avro array items")
 		}
 		elementType, elementSchema, err := convertAvroTypeToBigQuery(items)
 		if err != nil {
 			return bigquery.RecordFieldType, nil, err
 		}
 		fmt.Println("elementType: ", elementType)
-		fmt.Println("elementSchema:", elementSchema)
 
 		return bigquery.RecordFieldType, elementSchema, nil
 	case "record":
 		fields, ok := avroType["fields"].([]interface{})
 		if !ok {
-			return bigquery.RecordFieldType, nil, fmt.Errorf("Invalid Avro record fields")
+			return bigquery.RecordFieldType, nil, fmt.Errorf("invalid avro record fields")
 		}
 
 		// Recursively convert record fields
-		fmt.Println("map[string]interface{}fields: ", (map[string]interface{}{"fields": fields}))
 		recordFields, err := ConvertAvroToBigQuery(map[string]interface{}{"fields": fields})
 		if err != nil {
 			return bigquery.RecordFieldType, nil, err
 		}
-		fmt.Println("recordFields: ", recordFields)
 
 		return bigquery.RecordFieldType, recordFields, nil
 	default:
-		return bigquery.RecordFieldType, nil, fmt.Errorf("unsupported Avro type: %s", typeName)
+		return bigquery.RecordFieldType, nil, fmt.Errorf("unsupported avro type: %s", typeName)
 	}
 }

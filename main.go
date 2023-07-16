@@ -8,12 +8,6 @@ import (
 	"github.com/go-syar/avro-schema-bq/schema"
 )
 
-// type schemaJsonResponse struct {
-// 	Type    string          `json:"type"`
-// 	Data    bigquery.Schema `json:"data"`
-// 	Message string          `json:"message"`
-// }
-
 func main() {
 
 	schemaFilePath := "schema/test_data/testfile.avsc"
