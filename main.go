@@ -8,16 +8,18 @@ import (
 	"github.com/go-syar/avro-schema-bq/schema"
 )
 
+// main is the entry point of the program.
 func main() {
-
+	// schemaFilePath contains the path to the Avro schema file.
 	schemaFilePath := "schema/test_data/testfile.avsc"
 
+	// avroSchemaContent stores the content of the Avro schema file read from disk.
 	avroSchemaContent, err := ioutil.ReadFile(schemaFilePath)
 	if err != nil {
 		fmt.Println("Error reading Avro schema file:", err)
 		return
 	}
-
+	// avroSchema is a map that holds the parsed Avro schema data.
 	var avroSchema map[string]interface{}
 	err = json.Unmarshal(avroSchemaContent, &avroSchema)
 	if err != nil {
@@ -25,14 +27,17 @@ func main() {
 		return
 	}
 
+	// Print the parsed Avro schema.
 	fmt.Println("avroschema: ", avroSchema)
 
+	// ConvertAvroToBigQuery converts the Avro schema to BigQuery schema.
 	bqFields, err := schema.ConvertAvroToBigQuery(avroSchema)
 	if err != nil {
 		fmt.Println("Error:", err)
 		return
 	}
 
+	// Print the BigQuery schema.
 	fmt.Println("BigQuery Schema:")
 	for _, field := range bqFields {
 		fmt.Println(field.Name, field.Type)
