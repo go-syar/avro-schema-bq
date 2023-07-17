@@ -1,11 +1,10 @@
-package main
+package schema
 
 import (
 	"encoding/json"
 	"testing"
 
 	"cloud.google.com/go/bigquery"
-	"github.com/go-syar/avro-schema-bq/schema"
 )
 
 func TestConvertAvroToBigQuery(t *testing.T) {
@@ -32,7 +31,7 @@ func TestConvertAvroToBigQuery(t *testing.T) {
 	}
 
 	// Call the ConvertAvroToBigQuery function
-	bqFields, err := schema.ConvertAvroToBigQuery(avroSchema)
+	bqFields, err := ConvertAvroToBigQuery(avroSchema)
 	if err != nil {
 		t.Fatalf("Error converting Avro to BigQuery schema: %v", err)
 	}

@@ -1,3 +1,4 @@
+// Package table provides functionality for converting empty BQ Table with provided AVRO Schema
 package table
 
 import (
@@ -25,6 +26,7 @@ func CreateBQTableWithSA(projectID, datasetID, tableID, serviceAccount, schemaFi
 	}
 	defer client.Close()
 
+	// Read the contents of the Avro schema file from the specified path (schemaFilePath).
 	avroSchemaContent, err := ioutil.ReadFile(schemaFilePath)
 	if err != nil {
 		fmt.Println("Error reading Avro schema file:", err)
@@ -32,23 +34,28 @@ func CreateBQTableWithSA(projectID, datasetID, tableID, serviceAccount, schemaFi
 	}
 
 	var avroSchema map[string]interface{}
+	// Unmarshal the Avro schema content into a map structure (avroSchema map[string]interface{}).
 	err = json.Unmarshal(avroSchemaContent, &avroSchema)
 	if err != nil {
 		fmt.Println("Error parsing Avro schema:", err)
 		return err
 	}
 
+	// Convert the Avro schema (avroSchema map[string]interface{}) to BigQuery schema format (bqFields []*bigquery.FieldSchema).
 	bqFields, err := schema.ConvertAvroToBigQuery(avroSchema)
 	if err != nil {
 		fmt.Println("Error:", err)
 		return err
 	}
 
+	// Create BigQuery table metadata (metadata) with the converted schema (bqFields bigquery.Schema).
 	metadata := &bigquery.TableMetadata{
 		Schema: bqFields,
 	}
 
+	// Create a reference to the BigQuery table using the specified dataset (datasetID) and table ID (tableID).
 	tableRef := client.Dataset(datasetID).Table(tableID)
+	// Create the BigQuery table using the provided table metadata (metadata).
 	if err := tableRef.Create(ctx, metadata); err != nil {
 		return err
 	}
