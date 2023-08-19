@@ -1,3 +1,5 @@
+// Package main provides functionality for displaying the use of schema package to convert AVRO Schema to BQ Schema
+
 package main
 
 import (

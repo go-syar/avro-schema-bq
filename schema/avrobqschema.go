@@ -76,7 +76,7 @@ func ConvertAvroToBigQuery(avroSchema map[string]interface{}) ([]*bigquery.Field
 				case string:
 					// The type is a primitive type.
 					if avroField == "null" {
-						fmt.Println("type null for [linterface")
+						fmt.Println("type null for []interface")
 					} else {
 						c := avroField
 						bqFieldType, err := convertAvroStringTypeToBigQuery(c.(string))
@@ -173,14 +173,6 @@ func convertAvroStringTypeToBigQuery(bqFieldType string) (bigquery.FieldType, er
 		return bigquery.StringFieldType, nil
 	case "enum":
 		return bigquery.StringFieldType, nil
-	case "timestamp":
-		return bigquery.TimestampFieldType, nil
-	case "date":
-		return bigquery.DateFieldType, nil
-	case "time":
-		return bigquery.TimeFieldType, nil
-	case "datetime":
-		return bigquery.DateTimeFieldType, nil
 	}
 	// If the provided Avro data type does not match any recognized type,
 	// it defaults to the bigquery.StringFieldType.
@@ -209,42 +201,73 @@ func convertAvroTypeToBigQuery(avroType map[string]interface{}) (bigquery.FieldT
 	case "null":
 		// The Avro type is null, map to BigQuery STRING type (use STRING as a placeholder).
 		return bigquery.StringFieldType, nil, nil
-	case "boolean":
-		// The Avro type is boolean, map to BigQuery BOOLEAN type.
-		return bigquery.BooleanFieldType, nil, nil
+	case "bytes":
+		if avroType["logicalType"].(string) == "decimal" {
+			precisionValue, ok := avroType["precision"].(float64)
+			if !ok {
+				return bigquery.NumericFieldType, nil, nil
+			}
+			fmt.Println("logicalTypeName:", precisionValue)
+			scale, ok := avroType["scale"].(float64)
+			if !ok {
+				return bigquery.NumericFieldType, nil, nil
+			}
+			fmt.Println("logicalTypeName:", scale)
+			if precisionValue > 38 {
+				// The Avro type is bytes, logicalType is decimal and precision > 38 map to BigQuery BigNumeric type.
+				return bigquery.BigNumericFieldType, nil, nil
+			}
+			// The Avro type is bytes, logicalType is decimal map to BigQuery Numeric type.
+			return bigquery.NumericFieldType, nil, nil
+		}
+		// The Avro type is bytes, map to BigQuery BYTES type.
+		return bigquery.BytesFieldType, nil, nil
 	case "int":
+		switch avroType["logicalType"].(string) {
+		case "date":
+			// The Avro type is int, logicalType is date map to BigQuery Date type.
+			return bigquery.DateFieldType, nil, nil
+		case "time-millis":
+			// The Avro type is int, logicalType is time-millis map to BigQuery Time type.
+			return bigquery.TimeFieldType, nil, nil
+		}
 		// The Avro type is int, map to BigQuery INTEGER type.
 		return bigquery.IntegerFieldType, nil, nil
 	case "long":
+		switch avroType["logicalType"].(string) {
+		case "time-micros":
+			// The Avro type is int, logicalType is date map to BigQuery Date type.
+			return bigquery.TimeFieldType, nil, nil
+		case "timestamp-millis":
+			// The Avro type is int, logicalType is time-millis map to BigQuery Time type.
+			return bigquery.TimestampFieldType, nil, nil
+		case "timestamp-micros":
+			// The Avro type is int, logicalType is date map to BigQuery Date type.
+			return bigquery.TimestampFieldType, nil, nil
+		case "local-timestamp-millis":
+			// The Avro type is int, logicalType is time-millis map to BigQuery Time type.
+			return bigquery.TimestampFieldType, nil, nil
+		case "local-timestamp-micros":
+			// The Avro type is int, logicalType is time-millis map to BigQuery Time type.
+			return bigquery.TimestampFieldType, nil, nil
+		}
 		// The Avro type is long, map to BigQuery INTEGER type.
 		return bigquery.IntegerFieldType, nil, nil
+	case "boolean":
+		// The Avro type is boolean, map to BigQuery BOOLEAN type.
+		return bigquery.BooleanFieldType, nil, nil
 	case "float":
 		// The Avro type is float, map to BigQuery FLOAT type.
 		return bigquery.FloatFieldType, nil, nil
 	case "double":
 		// The Avro type is double, map to BigQuery FLOAT type.
 		return bigquery.FloatFieldType, nil, nil
-	case "bytes":
-		// The Avro type is bytes, map to BigQuery BYTES type.
-		return bigquery.BytesFieldType, nil, nil
 	case "string":
 		// The Avro type is string, map to BigQuery STRING type.
 		return bigquery.StringFieldType, nil, nil
 	case "enum":
 		// The Avro type is an enum, map to BigQuery STRING type (use STRING as a placeholder for enum).
 		return bigquery.StringFieldType, nil, nil
-	case "timestamp":
-		// The Avro type is timestamp, map to BigQuery TIMESTAMP type.
-		return bigquery.TimestampFieldType, nil, nil
-	case "date":
-		// The Avro type is date, map to BigQuery DATE type.
-		return bigquery.DateFieldType, nil, nil
-	case "time":
-		// The Avro type is time, map to BigQuery TIME type.
-		return bigquery.TimeFieldType, nil, nil
-	case "datetime":
-		// The Avro type is datetime, map to BigQuery DATETIME type.
-		return bigquery.DateTimeFieldType, nil, nil
 	case "array":
 		// The Avro type is an array, recursively convert the array's element type.
 		items, ok := avroType["items"].(map[string]interface{})
