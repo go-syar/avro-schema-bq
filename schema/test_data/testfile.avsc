@@ -7,17 +7,37 @@
     {
       "name": "id",
       "doc": "System-assigned numeric user ID. Cannot be changed by the user.",
-      "type": "int"
+      "type": "int",
+      "default" : 10
     },
     {
       "name": "username",
       "doc": "The username chosen by the user. Can be changed by the user.",
+      "default" : "john",
       "type": "string"
+    },
+    {
+      "name": "name",
+      "doc": "The username chosen by the user. Can be changed by the user.",
+      "type": ["null",{
+      "name" : "namerecord",
+      "type" : "record",
+      "fields" : [
+        { "name" : "first" , "type" : "string" },
+        { "name" : "last" , "type" : ["null","string"] }
+        ]
+     }]
     },
     {
       "name": "passwordHash",
       "doc": "The user's password, hashed using [scrypt](http://www.tarsnap.com/scrypt.html).",
-      "type": "string"
+      "type" : "record",
+      "namespace" : "Tutorialspoint",
+      "fields" : [
+        { "name" : "hint" , "type" : "string" },
+        { "name" : "number" , "type" : "int" },
+        { "name" : "age" , "type" : ["null","int"] }
+        ]
     },
     {
       "name": "decimalCode",
@@ -28,6 +48,15 @@
        "precision": 4,
        "scale": 2
      }},
+    {
+      "name": "decCode",
+      "doc": "The user's password, hashed using [scrypt](http://www.tarsnap.com/scrypt.html).",
+      "type": ["null",{
+       "type": "bytes",
+       "logicalType": "decimal",
+       "precision": 4,
+       "scale": 2
+     }]},
     {
       "name": "signupTimestamp",
       "doc": "Timestamp (milliseconds since epoch) when the user signed up",
@@ -66,7 +95,7 @@
             {
               "name": "dateAdded",
               "doc": "Timestamp (milliseconds since epoch) when the email address was added to the account.",
-              "type": ["null", {
+              "type": ["null",{
                 "type" : "long",
                 "logicalType" : "timestamp-millis"
               }]

@@ -16,6 +16,23 @@ import (
 // The resulting BigQuery schema fields are returned as a slice.
 // If any invalid field or type is encountered, an error is returned.
 
+func checkPrecisionScale(fieldType map[string]interface{}) (int64, int64) {
+	if fieldType["logicalType"].(string) == "decimal" {
+		precisionValue, ok := fieldType["precision"].(float64)
+		if !ok {
+			return 0, 0
+		}
+		fmt.Println("precisionValue:", precisionValue)
+		scale, ok := fieldType["scale"].(float64)
+		if !ok {
+			return int64(precisionValue), 0
+		}
+		fmt.Println("scale:", scale)
+		return int64(precisionValue), int64(scale)
+	}
+	return 0, 0
+}
+
 func ConvertAvroToBigQuery(avroSchema map[string]interface{}) ([]*bigquery.FieldSchema, error) {
 	var fields []*bigquery.FieldSchema
 
@@ -35,6 +52,10 @@ func ConvertAvroToBigQuery(avroSchema map[string]interface{}) ([]*bigquery.Field
 
 		// Extract the optional "doc" field from the Avro field as its description.
 		description, _ := avroFieldMap["doc"].(string)
+
+		fmt.Println("default type:", reflect.TypeOf(avroFieldMap["default"]))
+		defaultValue, _ := avroFieldMap["default"].(string)
+		fmt.Println("defaultValue:", defaultValue)
 
 		// Extract the required "name" field from the Avro field as the BigQuery field name.
 		fieldName, ok := avroFieldMap["name"].(string)
@@ -60,16 +81,32 @@ func ConvertAvroToBigQuery(avroSchema map[string]interface{}) ([]*bigquery.Field
 				case map[string]interface{}:
 					// The type is a nested record. Convert recursively.
 					b := avroField
+					repeated := false
+					precision := int64(0)
+					scale := int64(0)
+					if b.(map[string]interface{})["type"].(string) == "bytes" {
+						precision, scale = checkPrecisionScale(b.(map[string]interface{}))
+					}
+
+					if b.(map[string]interface{})["type"].(string) == "array" {
+						repeated = true
+					}
+
 					bqFieldType, bqFieldSchema, err := convertAvroTypeToBigQuery(b.(map[string]interface{}))
 					if err != nil {
 						return nil, err
 					}
 					// Create the BigQuery field with the converted schema.
 					field := &bigquery.FieldSchema{
-						Name:        fieldName,
-						Type:        bqFieldType,
-						Schema:      bqFieldSchema,
-						Description: description,
+						Name:                   fieldName,
+						Type:                   bqFieldType,
+						Schema:                 bqFieldSchema,
+						Description:            description,
+						Required:               false,
+						Repeated:               repeated,
+						Precision:              precision,
+						Scale:                  scale,
+						DefaultValueExpression: defaultValue,
 					}
 					fields = append(fields, field)
 
@@ -86,9 +123,11 @@ func ConvertAvroToBigQuery(avroSchema map[string]interface{}) ([]*bigquery.Field
 						fmt.Println("bqFieldType: ", bqFieldType)
 						// Create the BigQuery field with the primitive type.
 						field := &bigquery.FieldSchema{
-							Name:        fieldName,
-							Type:        bqFieldType,
-							Description: description,
+							Name:                   fieldName,
+							Type:                   bqFieldType,
+							Description:            description,
+							Required:               false,
+							DefaultValueExpression: defaultValue,
 						}
 						fields = append(fields, field)
 					}
@@ -107,9 +146,11 @@ func ConvertAvroToBigQuery(avroSchema map[string]interface{}) ([]*bigquery.Field
 			}
 			// Create the BigQuery field with the primitive type.
 			field := &bigquery.FieldSchema{
-				Name:        fieldName,
-				Type:        bqFieldType,
-				Description: description,
+				Name:                   fieldName,
+				Type:                   bqFieldType,
+				Description:            description,
+				Required:               true,
+				DefaultValueExpression: defaultValue,
 			}
 			fields = append(fields, field)
 
@@ -119,6 +160,18 @@ func ConvertAvroToBigQuery(avroSchema map[string]interface{}) ([]*bigquery.Field
 			if !ok {
 				return nil, fmt.Errorf("invalid Avro schema field type")
 			}
+
+			fmt.Println("avro test type: ", fieldType["type"].(string))
+
+			repeated := false
+			precision := int64(0)
+			scale := int64(0)
+			if fieldType["type"].(string) == "bytes" {
+				precision, scale = checkPrecisionScale(fieldType)
+			}
+			if fieldType["type"].(string) == "array" {
+				repeated = true
+			}
 			// Convert the nested type to BigQuery field(s).
 			bqFieldType, bqFieldSchema, err := convertAvroTypeToBigQuery(fieldType)
 			if err != nil {
@@ -126,10 +179,15 @@ func ConvertAvroToBigQuery(avroSchema map[string]interface{}) ([]*bigquery.Field
 			}
 			// Create the BigQuery field with the nested schema.
 			field := &bigquery.FieldSchema{
-				Name:        fieldName,
-				Type:        bqFieldType,
-				Schema:      bqFieldSchema,
-				Description: description,
+				Name:                   fieldName,
+				Type:                   bqFieldType,
+				Schema:                 bqFieldSchema,
+				Description:            description,
+				Required:               true,
+				Repeated:               repeated,
+				Precision:              precision,
+				Scale:                  scale,
+				DefaultValueExpression: defaultValue,
 			}
 			fields = append(fields, field)
 
@@ -137,9 +195,10 @@ func ConvertAvroToBigQuery(avroSchema map[string]interface{}) ([]*bigquery.Field
 			// The Avro field type is not recognized as a valid type.
 			// In this case, we treat it as a string type.
 			field := &bigquery.FieldSchema{
-				Name:        fieldName,
-				Type:        bigquery.StringFieldType,
-				Description: description,
+				Name:                   fieldName,
+				Type:                   bigquery.StringFieldType,
+				Description:            description,
+				DefaultValueExpression: defaultValue,
 			}
 			fields = append(fields, field)
 		}
@@ -173,6 +232,24 @@ func convertAvroStringTypeToBigQuery(bqFieldType string) (bigquery.FieldType, er
 		return bigquery.StringFieldType, nil
 	case "enum":
 		return bigquery.StringFieldType, nil
+	case "fixed":
+		// The Avro type is fixed, map to BigQuery BYTES type.
+		return bigquery.BytesFieldType, nil
+	case "record":
+		// The Avro type is a record, recursively convert the record's fields.
+		fields, ok := avroType["fields"].([]interface{})
+		if !ok {
+			return bigquery.RecordFieldType, nil, fmt.Errorf("invalid avro record fields")
+		}
+
+		// Recursively convert record fields using the ConvertAvroToBigQuery function.
+		recordFields, err := ConvertAvroToBigQuery(map[string]interface{}{"fields": fields})
+		if err != nil {
+			return bigquery.RecordFieldType, nil, err
+		}
+
+		// The record in Avro is mapped to a BigQuery RECORD type, with the schema of the record fields.
+		return bigquery.RecordFieldType, recordFields, nil
 	}
 	// If the provided Avro data type does not match any recognized type,
 	// it defaults to the bigquery.StringFieldType.
@@ -201,24 +278,21 @@ func convertAvroTypeToBigQuery(avroType map[string]interface{}) (bigquery.FieldT
 	case "null":
 		// The Avro type is null, map to BigQuery STRING type (use STRING as a placeholder).
 		return bigquery.StringFieldType, nil, nil
+	case "fixed":
+		// The Avro type is fixed, map to BigQuery BYTES type.
+		return bigquery.BytesFieldType, nil, nil
 	case "bytes":
 		if avroType["logicalType"].(string) == "decimal" {
-			precisionValue, ok := avroType["precision"].(float64)
-			if !ok {
-				return bigquery.NumericFieldType, nil, nil
-			}
-			fmt.Println("logicalTypeName:", precisionValue)
-			scale, ok := avroType["scale"].(float64)
-			if !ok {
-				return bigquery.NumericFieldType, nil, nil
-			}
-			fmt.Println("logicalTypeName:", scale)
-			if precisionValue > 38 {
+			precisionValue, scale := checkPrecisionScale(avroType)
+			if 0 <= (precisionValue-scale) && (precisionValue-scale) <= 29 && scale <= 9 && precisionValue <= 38 {
 				// The Avro type is bytes, logicalType is decimal and precision > 38 map to BigQuery BigNumeric type.
+				return bigquery.NumericFieldType, nil, nil
+			} else if 0 <= (precisionValue-scale) && (precisionValue-scale) <= 38 && scale <= 38 && precisionValue <= 76 {
 				return bigquery.BigNumericFieldType, nil, nil
+			} else {
+				// The Avro type is bytes, logicalType is decimal map to BigQuery Numeric type.
+				return bigquery.NumericFieldType, nil, fmt.Errorf("precision and scale are out of bounds")
 			}
-			// The Avro type is bytes, logicalType is decimal map to BigQuery Numeric type.
-			return bigquery.NumericFieldType, nil, nil
 		}
 		// The Avro type is bytes, map to BigQuery BYTES type.
 		return bigquery.BytesFieldType, nil, nil
@@ -246,10 +320,10 @@ func convertAvroTypeToBigQuery(avroType map[string]interface{}) (bigquery.FieldT
 			return bigquery.TimestampFieldType, nil, nil
 		case "local-timestamp-millis":
 			// The Avro type is int, logicalType is time-millis map to BigQuery Time type.
-			return bigquery.TimestampFieldType, nil, nil
+			return bigquery.DateTimeFieldType, nil, nil
 		case "local-timestamp-micros":
 			// The Avro type is int, logicalType is time-millis map to BigQuery Time type.
-			return bigquery.TimestampFieldType, nil, nil
+			return bigquery.DateTimeFieldType, nil, nil
 		}
 		// The Avro type is long, map to BigQuery INTEGER type.
 		return bigquery.IntegerFieldType, nil, nil
