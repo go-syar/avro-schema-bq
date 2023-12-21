@@ -28,6 +28,20 @@
         "Collation": ""
     },
     {
+        "Name": "type_json",
+        "Description": "The username chosen by the user. Can be changed by the user.",
+        "Repeated": false,
+        "Required": true,
+        "Type": "JSON",
+        "PolicyTags": null,
+        "Schema": null,
+        "MaxLength": 0,
+        "Precision": 0,
+        "Scale": 0,
+        "DefaultValueExpression": "john",
+        "Collation": ""
+    },
+    {
         "Name": "name",
         "Description": "The username chosen by the user. Can be changed by the user.",
         "Repeated": false,
@@ -138,6 +152,35 @@
         "MaxLength": 0,
         "Precision": 4,
         "Scale": 2,
+        "DefaultValueExpression": "",
+        "Collation": ""
+    },
+    {
+        "Name": "pets",
+        "Description": "The user's pets.",
+        "Repeated": true,
+        "Required": true,
+        "Type": "RECORD",
+        "PolicyTags": null,
+        "Schema": [
+            {
+                "Name": "pet",
+                "Description": "",
+                "Repeated": false,
+                "Required": false,
+                "Type": "STRING",
+                "PolicyTags": null,
+                "Schema": null,
+                "MaxLength": 0,
+                "Precision": 0,
+                "Scale": 0,
+                "DefaultValueExpression": "",
+                "Collation": ""
+            }
+        ],
+        "MaxLength": 0,
+        "Precision": 0,
+        "Scale": 0,
         "DefaultValueExpression": "",
         "Collation": ""
     },

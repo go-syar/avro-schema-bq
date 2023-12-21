@@ -4,6 +4,7 @@ package schema
 import (
 	"fmt"
 	"reflect"
+	"strings"
 
 	"cloud.google.com/go/bigquery"
 )
@@ -343,24 +344,42 @@ func convertAvroTypeToBigQuery(avroType map[string]interface{}) (bigquery.FieldT
 		return bigquery.FloatFieldType, nil, nil
 	case "string":
 		// The Avro type is string, map to BigQuery STRING type.
+		if strings.ToLower(avroType["sqlType"].(string)) == "json" {
+			return bigquery.JSONFieldType, nil, nil
+		}
 		return bigquery.StringFieldType, nil, nil
 	case "enum":
 		// The Avro type is an enum, map to BigQuery STRING type (use STRING as a placeholder for enum).
 		return bigquery.StringFieldType, nil, nil
 	case "array":
 		// The Avro type is an array, recursively convert the array's element type.
-		items, ok := avroType["items"].(map[string]interface{})
-		if !ok {
-			return bigquery.StringFieldType, nil, fmt.Errorf("invalid avro array items")
-		}
-		elementType, elementSchema, err := convertAvroTypeToBigQuery(items)
-		if err != nil {
-			return bigquery.RecordFieldType, nil, err
-		}
-		fmt.Println("elementType: ", elementType)
+		switch avroType["items"].(type) {
+		case string:
+			items, ok := avroType["items"].(string)
+			if !ok {
+				return bigquery.StringFieldType, nil, fmt.Errorf("invalid avro array items")
+			}
+			itemsbqtype, err := convertAvroStringTypeToBigQuery(items)
+			if err != nil {
+				return bigquery.RecordFieldType, nil, err
+			}
+			elementSchema := bigquery.Schema{{Name: avroType["name"].(string), Type: itemsbqtype}}
+			// The array in Avro is mapped to a BigQuery RECORD type, with the schema of the element type.
+			return bigquery.RecordFieldType, elementSchema, nil
+		case map[string]interface{}:
+			items, ok := avroType["items"].(map[string]interface{})
+			if !ok {
+				return bigquery.StringFieldType, nil, fmt.Errorf("invalid avro array items")
+			}
+			elementType, elementSchema, err := convertAvroTypeToBigQuery(items)
+			if err != nil {
+				return bigquery.RecordFieldType, nil, err
+			}
+			fmt.Println("elementType: ", elementType)
 
-		// The array in Avro is mapped to a BigQuery RECORD type, with the schema of the element type.
-		return bigquery.RecordFieldType, elementSchema, nil
+			// The array in Avro is mapped to a BigQuery RECORD type, with the schema of the element type.
+			return bigquery.RecordFieldType, elementSchema, nil
+		}
 	case "record":
 		// The Avro type is a record, recursively convert the record's fields.
 		fields, ok := avroType["fields"].([]interface{})
@@ -380,4 +399,5 @@ func convertAvroTypeToBigQuery(avroType map[string]interface{}) (bigquery.FieldT
 		// The Avro type is not recognized or unsupported, return an error with a BigQuery RECORD type.
 		return bigquery.RecordFieldType, nil, fmt.Errorf("unsupported avro type: %s", typeName)
 	}
+	return bigquery.StringFieldType, nil, fmt.Errorf("unsupported avro type: %s", typeName)
 }

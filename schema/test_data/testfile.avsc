@@ -17,6 +17,15 @@
       "type": "string"
     },
     {
+      "name": "type_json",
+      "doc": "The username chosen by the user. Can be changed by the user.",
+      "default" : "john",
+      "type": {
+       "type": "string",
+       "sqlType": "JSON"
+     }
+    },
+    {
       "name": "name",
       "doc": "The username chosen by the user. Can be changed by the user.",
       "type": ["null",{
@@ -47,6 +56,14 @@
        "logicalType": "decimal",
        "precision": 4,
        "scale": 2
+     }},
+     {
+      "name": "pets",
+      "doc": "The user's pets.",
+      "type": {
+       "type": "array",
+       "items": "string",
+       "name": "pet"
      }},
     {
       "name": "decCode",
