@@ -139,6 +139,23 @@ func ConvertAvroToBigQuery(avroSchema map[string]interface{}) ([]*bigquery.Field
 			if !ok {
 				return nil, fmt.Errorf("invalid Avro schema field type")
 			}
+			var bqFieldSchema bigquery.Schema
+			if fieldType == "record" {
+				// The Avro type is a record, recursively convert the record's fields.
+				fields, ok := avroFieldMap["fields"].([]interface{})
+				if !ok {
+					return nil, fmt.Errorf("invalid avro record fields")
+				}
+
+				// Recursively convert record fields using the ConvertAvroToBigQuery function.
+				recordFields, err := ConvertAvroToBigQuery(map[string]interface{}{"fields": fields})
+				if err != nil {
+					bqFieldSchema = nil
+				}
+
+				// The record in Avro is mapped to a BigQuery RECORD type, with the schema of the record fields.
+				bqFieldSchema = recordFields
+			}
 			// Convert the primitive type to BigQuery type.
 			bqFieldType, err := convertAvroStringTypeToBigQuery(fieldType)
 			if err != nil {
@@ -148,6 +165,7 @@ func ConvertAvroToBigQuery(avroSchema map[string]interface{}) ([]*bigquery.Field
 			field := &bigquery.FieldSchema{
 				Name:                   fieldName,
 				Type:                   bqFieldType,
+				Schema:                 bqFieldSchema,
 				Description:            description,
 				Required:               true,
 				DefaultValueExpression: defaultValue,
@@ -236,24 +254,11 @@ func convertAvroStringTypeToBigQuery(bqFieldType string) (bigquery.FieldType, er
 		// The Avro type is fixed, map to BigQuery BYTES type.
 		return bigquery.BytesFieldType, nil
 	case "record":
-		// The Avro type is a record, recursively convert the record's fields.
-		fields, ok := avroType["fields"].([]interface{})
-		if !ok {
-			return bigquery.RecordFieldType, nil, fmt.Errorf("invalid avro record fields")
-		}
-
-		// Recursively convert record fields using the ConvertAvroToBigQuery function.
-		recordFields, err := ConvertAvroToBigQuery(map[string]interface{}{"fields": fields})
-		if err != nil {
-			return bigquery.RecordFieldType, nil, err
-		}
-
-		// The record in Avro is mapped to a BigQuery RECORD type, with the schema of the record fields.
-		return bigquery.RecordFieldType, recordFields, nil
+		// The Avro type is fixed, map to BigQuery BYTES type.
+		return bigquery.RecordFieldType, nil
+	default:
+		return bigquery.StringFieldType, nil
 	}
-	// If the provided Avro data type does not match any recognized type,
-	// it defaults to the bigquery.StringFieldType.
-	return bigquery.StringFieldType, nil
 
 }
 
